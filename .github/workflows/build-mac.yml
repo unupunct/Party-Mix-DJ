@@ -27,11 +27,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build the audio engine for both architectures
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "12.0"   # the engine must also run on macOS 12 (Monterey)
         run: |
           cargo build --release --target aarch64-apple-darwin --manifest-path engine/Cargo.toml
           cargo build --release --target x86_64-apple-darwin --manifest-path engine/Cargo.toml
       - name: Build the installers (.dmg)
         run: npm run dist:mac
+      - name: Check the minimum macOS version of the app (must be 12 or lower: a 2017 MacBook Air stops at Monterey)
+        run: |
+          for app in dist/mac/*.app dist/mac-arm64/*.app; do
+            v=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$app/Contents/Info.plist")
+            echo "$app requires macOS $v"
+            major=${v%%.*}
+            if [ "$major" -gt 12 ]; then echo "::error::$app needs macOS $v, too new for Monterey"; exit 1; fi
+          done
       - name: List the result
         run: ls -la dist
       - uses: actions/upload-artifact@v4

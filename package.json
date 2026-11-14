@@ -15,7 +15,7 @@
     "build:engine": "cargo build --release --manifest-path engine/Cargo.toml",
     "test:engine": "cargo test --release --manifest-path engine/Cargo.toml",
     "test:js": "node scripts/test-xyfx.js && node scripts/test-loopcalc.js",
-    "dist:mac": "node scripts/stage-mac-engine.js && electron-builder --mac dmg --arm64 --x64 --publish never"
+    "dist:mac": "node scripts/stage-mac-engine.js && electron-builder --mac dmg --arm64 --x64 --publish never -c.electronVersion=43.8.10"
   },
   "build": {
     "appId": "local.partymixdj.app",

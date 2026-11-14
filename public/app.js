@@ -835,6 +835,7 @@ const midiLog = []; let midiLogN = 0;
 setInterval(() => { if (midiLogN !== midiLog.length || midiLog.length >= 6000) { midiLogN = midiLog.length; lsSet('midiLog', midiLog.map(x => x.join(',')).join(';')); } }, 2000);
 function onMidi(e) {
   const [st, d1, d2 = 0] = e.data; if (st >= 0xF0) return;
+  if (window.__midiTap) window.__midiTap(e.data);   // controller test: every raw message
   if ((st & 0xF0) === 0xB0 && d1 !== 0x06) { midiLog.push([Math.round(performance.now()), st, d1, d2]); if (midiLog.length > 6000) midiLog.shift(); }
   const type = st & 0xF0, ch = st & 0x0F; const t = (type === 0x90 && d2 === 0) ? 0x80 : type;
   monitor(`${st.toString(16).toUpperCase()} ${d1.toString(16).padStart(2, '0')} ${d2.toString(16).padStart(2, '0')}   ${t === 0xB0 ? 'CC' : t === 0x90 ? 'NoteOn' : t === 0x80 ? 'NoteOff' : 'type ' + type.toString(16)} ch${ch + 1}`);
@@ -940,7 +941,8 @@ function onNote(ch, n, down) {
 const ledCache = new Map();
 setInterval(() => ledCache.clear(), 2000);   // re-send every LED state regularly so the controller always matches the screen
 function led(status, note, on) {
-  const key = status * 256 + note, val = on ? 0x7F : 0x01;   // off = velocity 1 (velocity 0 is a note-off the controller may ignore)
+  if (window.__ledHold) return;   // the controller test owns the LEDs while it is open
+  const key = status * 256 + note, val = on ? 0x7F : (note === 0x1B ? 0x00 : 0x01);   // off = velocity 1 (a dim glow); the HEADPHONE button must really go dark, so it gets velocity 0
   if (!midiOut || ledCache.get(key) === val) return;
   ledCache.set(key, val); try { midiOut.send([status, note, val]); } catch {}
 }

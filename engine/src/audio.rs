@@ -131,10 +131,13 @@ impl Io {
         let rate = if s.sample_rate > 0 { s.sample_rate } else { master.default_output_config().map_err(|e| e.to_string())?.sample_rate() };
         let same4 = matches!(s.cue, CueSetting::Same4);
         let (cfg, ch) = pick_config(&master, if same4 { 4 } else { 2 }, rate, s.buffer)?;
+        // A separate cue device. If it is the Numark Party Mix (4 channels: 1/2 = line out, 3/4 = headphone jack) the cue is written to channels 3/4, so it is heard in the controller's headphone jack.
+        let mut cue_ofs = 0usize;
         let (cue_dev, cue_cfg) = match &s.cue {
             CueSetting::Device { device } => {
                 let d = find_device(&host, &Some(device.clone()))?;
-                let (c, _) = pick_config(&d, 2, rate, 0).map_err(|e| format!("cue device: {e}"))?;
+                let is_party_mix = dev_name(&d).to_lowercase().contains("party mix");
+                let (c, _) = match (is_party_mix, pick_config(&d, 4, rate, 0)) { (true, Ok(x)) => { cue_ofs = 2; x } _ => pick_config(&d, 2, rate, 0).map_err(|e| format!("cue device: {e}"))? };
                 (Some(d), Some(c))
             }
             _ => (None, None),
@@ -192,7 +195,7 @@ impl Io {
                 if avail > hi { for _ in 0..((avail - target) & !1) { let _ = cue_rx.pop(); } }
                 for frame in data.chunks_mut(cch) {
                     frame.fill(0.0);
-                    if cue_rx.slots() >= 2 { frame[0] = cue_rx.pop().unwrap_or(0.0); frame[1] = cue_rx.pop().unwrap_or(0.0); }
+                    if cue_rx.slots() >= 2 { frame[cue_ofs] = cue_rx.pop().unwrap_or(0.0); frame[cue_ofs + 1] = cue_rx.pop().unwrap_or(0.0); }
                 }
             }, on_err, None).map_err(|e| format!("cannot open cue output: {e}"))?;
             st.play().map_err(|e| format!("cannot start cue output: {e}"))?;

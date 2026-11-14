@@ -87,6 +87,25 @@ ipcMain.handle('fetch-playlist-url', async (_e, url) => {
   } catch (e) { return { error: e.name === 'AbortError' ? 'No answer from the server within 8 seconds.' : String(e.message || e) }; }
   finally { clearTimeout(timer); }
 });
+/* ---- controller test: a READ-ONLY inventory of the controller (USB interfaces, Windows audio outputs with volume and mute) and saving of the report */
+const HW_PS = "$ErrorActionPreference = 'SilentlyContinue'\nAdd-Type -TypeDefinition @'\nusing System; using System.Runtime.InteropServices;\n[ComImport, Guid(\"BCDE0395-E52F-467C-8E3D-C4579291692E\")] public class MMDeviceEnumeratorCom2 {}\n[ComImport, Guid(\"A95664D2-9614-4F35-A746-DE8DB63617E6\"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]\npublic interface IMMDeviceEnumerator2 { int EnumAudioEndpoints(int f, int m, out IntPtr d); int GetDefaultAudioEndpoint(int f, int r, out IMMDevice2 d); int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string id, out IMMDevice2 d); }\n[ComImport, Guid(\"D666063F-1587-4E43-81F1-B948E807363F\"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]\npublic interface IMMDevice2 { int Activate(ref Guid iid, int ctx, IntPtr p, [MarshalAs(UnmanagedType.IUnknown)] out object o); }\n[ComImport, Guid(\"5CDF2C82-841E-4546-9722-0CF74078229A\"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]\npublic interface IAudioEndpointVolume2 {\n  int RegisterControlChangeNotify(IntPtr p); int UnregisterControlChangeNotify(IntPtr p); int GetChannelCount(out uint n);\n  int SetMasterVolumeLevel(float l, ref Guid c); int SetMasterVolumeLevelScalar(float l, ref Guid c); int GetMasterVolumeLevel(out float l); int GetMasterVolumeLevelScalar(out float l);\n  int SetChannelVolumeLevel(uint ch, float l, ref Guid c); int SetChannelVolumeLevelScalar(uint ch, float l, ref Guid c); int GetChannelVolumeLevel(uint ch, out float l); int GetChannelVolumeLevelScalar(uint ch, out float l);\n  int SetMute([MarshalAs(UnmanagedType.Bool)] bool m, ref Guid c); int GetMute([MarshalAs(UnmanagedType.Bool)] out bool m);\n}\npublic class VolInfo {\n  public static string Read(string id) {\n    var e = (IMMDeviceEnumerator2)new MMDeviceEnumeratorCom2(); IMMDevice2 d; e.GetDevice(id, out d);\n    Guid g = new Guid(\"5CDF2C82-841E-4546-9722-0CF74078229A\"); object o; d.Activate(ref g, 23, IntPtr.Zero, out o);\n    var v = (IAudioEndpointVolume2)o; float s; bool mu; v.GetMasterVolumeLevelScalar(out s); v.GetMute(out mu);\n    return \"volume=\" + Math.Round(s * 100) + \"% mute=\" + mu;\n  }\n}\n'@\n$usb = @(Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_15E4' } | ForEach-Object { [pscustomobject]@{ name = $_.FriendlyName; class = $_.Class; status = $_.Status; service = $_.Service; id = $_.InstanceId } })\n$ep = @(Get-PnpDevice -Class AudioEndpoint -PresentOnly | Where-Object { $_.InstanceId -match '\\{0\\.0\\.0\\.' } | ForEach-Object { $id = ($_.InstanceId -replace '^SWD\\\\MMDEVAPI\\\\', ''); $vi = $null; try { $vi = [VolInfo]::Read($id) } catch {}; [pscustomobject]@{ name = $_.FriendlyName; id = $id; info = $vi } })\n[pscustomobject]@{ usb = $usb; endpoints = $ep } | ConvertTo-Json -Depth 4 -Compress";
+ipcMain.handle('hw-inventory', () => new Promise(resolve => {
+  if (process.platform !== 'win32') return resolve({ usb: [], endpoints: [], error: 'Windows only' });
+  const { spawn } = require('child_process');
+  let out = '', done = false; const fin = v => { if (!done) { done = true; resolve(v); } };
+  try {
+    const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', Buffer.from(HW_PS, 'utf16le').toString('base64')], { windowsHide: true });
+    p.stdout.on('data', d => { out += d; }); p.on('error', e => fin({ usb: [], endpoints: [], error: e.message }));
+    p.on('close', () => { try { const j = JSON.parse(out.trim()); const arr = x => (x == null ? [] : Array.isArray(x) ? x : [x]); fin({ usb: arr(j.usb), endpoints: arr(j.endpoints) }); } catch (e) { fin({ usb: [], endpoints: [], error: 'could not read: ' + e.message }); } });
+    setTimeout(() => { try { p.kill(); } catch {} fin({ usb: [], endpoints: [], error: 'timeout' }); }, 20000);
+  } catch (e) { fin({ usb: [], endpoints: [], error: e.message }); }
+}));
+ipcMain.handle('hw-save-report', (_e, name, md, json) => {
+  const dir = path.join(app.getPath('documents'), 'Party Mix DJ reports'); fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19), base = path.join(dir, String(name || 'report').replace(/[^\w.-]/g, '_') + '-' + stamp);
+  fs.writeFileSync(base + '.md', String(md)); fs.writeFileSync(base + '.json', String(json)); try { shell.showItemInFolder(base + '.md'); } catch {}
+  return base + '.md';
+});
 /* ---- folder browser (Browse PC): quick links, drives, sub-folders, audio files of one folder */
 ipcMain.handle('fs-roots', () => {
   const out = [];
@@ -115,14 +134,15 @@ const { spawn } = require('child_process');
 const readline = require('readline');
 let engine = null, engineRestarts = 0, quitting = false;
 const engineExe = () => {
-  const cands = [path.join(process.resourcesPath || '', 'djengine.exe'), path.join(__dirname, '..', 'engine', 'target', 'release', 'djengine.exe')];
+  const exeName = process.platform === 'win32' ? 'djengine.exe' : 'djengine';
+  const cands = [path.join(process.resourcesPath || '', exeName), path.join(__dirname, '..', 'engine', 'target', 'release', exeName)];
   return cands.find(p => { try { return fs.statSync(p).isFile(); } catch { return false; } }) || null;
 };
 function toRenderer(ev) { if (win && !win.isDestroyed()) win.webContents.send('engine-event', ev); }
 function startEngine() {
   if (process.env.DJ_ENGINE === 'off') return toRenderer({ evt: 'engineUnavailable', reason: 'disabled by DJ_ENGINE=off' });
   const exe = engineExe();
-  if (!exe) return toRenderer({ evt: 'engineUnavailable', reason: 'djengine.exe not found' });
+  if (!exe) return toRenderer({ evt: 'engineUnavailable', reason: 'the audio engine was not found' });
   try { engine = spawn(exe, [], { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true, env: { ...process.env, DJ_LIBRARY: path.join(app.getPath('userData'), 'library.db') } }); }
   catch (e) { return toRenderer({ evt: 'engineUnavailable', reason: String(e) }); }
   readline.createInterface({ input: engine.stdout }).on('line', l => { try { toRenderer(JSON.parse(l)); } catch {} });

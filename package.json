@@ -14,7 +14,8 @@
     "dist": "npm run build:engine && electron-builder --win nsis portable",
     "build:engine": "cargo build --release --manifest-path engine/Cargo.toml",
     "test:engine": "cargo test --release --manifest-path engine/Cargo.toml",
-    "test:js": "node scripts/test-xyfx.js && node scripts/test-loopcalc.js"
+    "test:js": "node scripts/test-xyfx.js && node scripts/test-loopcalc.js",
+    "dist:mac": "node scripts/stage-mac-engine.js && electron-builder --mac dmg --arm64 --x64 --publish never"
   },
   "build": {
     "appId": "local.partymixdj.app",
@@ -34,7 +35,13 @@
         "portable"
       ],
       "icon": "build/icon.ico",
-      "artifactName": "PartyMixDJ-${version}-${arch}.${ext}"
+      "artifactName": "PartyMixDJ-${version}-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "engine/target/release/djengine.exe",
+          "to": "djengine.exe"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -48,12 +55,30 @@
     "portable": {
       "artifactName": "PartyMixDJ-${version}-portable.${ext}"
     },
-    "extraResources": [
-      {
-        "from": "engine/target/release/djengine.exe",
-        "to": "djengine.exe"
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon-mac.png",
+      "category": "public.app-category.music",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "PartyMixDJ-${version}-mac-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "engine/dist-mac/${arch}/djengine",
+          "to": "djengine"
+        }
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Party Mix DJ lists your audio devices. It does not record."
       }
-    ]
+    },
+    "dmg": {
+      "title": "Party Mix DJ ${version}",
+      "artifactName": "PartyMixDJ-${version}-mac-${arch}.${ext}"
+    },
+    "afterPack": "build/afterPack.js"
   },
   "devDependencies": {
     "electron": "^45.3.2",

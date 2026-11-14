@@ -1,7 +1,7 @@
 # Party Mix DJ — free DJ software for the Numark Party Mix
 
 [![Latest release](https://img.shields.io/github/v/release/unupunct/Party-Mix-DJ?label=download&color=ff2b3a)](https://github.com/unupunct/Party-Mix-DJ/releases/latest)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-1f6feb)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-1f6feb)
 ![Controller](https://img.shields.io/badge/controller-Numark%20Party%20Mix-ff4fa8)
 ![Price](https://img.shields.io/badge/price-free-37d67a)
 
@@ -54,6 +54,11 @@ Windows may show a SmartScreen warning ("unknown publisher") because the app is 
 Requirements: Windows 10 / 11 (64-bit), a Numark Party Mix (original model, USB `VID_15E4 PID_0038`, shows up as "Party Mix" audio + "Party Mix MIDI"). The app also starts without the controller and can be played with the mouse.
 Run from source: `npm install` then `npm start`.
 
+## macOS (Apple silicon and Intel)
+macOS builds are on the same [Releases](https://github.com/unupunct/Party-Mix-DJ/releases/latest) page: `PartyMixDJ-<version>-mac-arm64.dmg` for Macs with an M-series chip (M1 and later) and `PartyMixDJ-<version>-mac-x64.dmg` for Intel Macs (Apple menu → About This Mac shows which one you have). Open the .dmg and drag **Party Mix DJ** to Applications.
+
+The app is not signed or notarised by Apple, so the first time: **right-click (Control-click) the app → Open → Open**. If macOS says the app is damaged, run this once in Terminal: `xattr -cr "/Applications/Party Mix DJ.app"`. The Party Mix is a class-compliant USB device on macOS (no driver); the app lists it as "Party Mix" audio and MIDI. The macOS version is new and has not been tested on real Mac hardware yet: please [report problems](https://github.com/unupunct/Party-Mix-DJ/issues).
+
 ## Screenshots
 | | |
 |---|---|
@@ -67,6 +72,7 @@ Run from source: `npm install` then `npm start`.
 **Do I need extra software?** No. The app uses the audio and MIDI devices that Windows already shows for the Party Mix ("Party Mix" audio and "Party Mix MIDI"); the audio engine and everything else is included in the installer.
 **Where do I hear the headphone cue?** On the Party Mix headphone jack: choose *Cue out → Channels 3–4 of the master device* in Audio settings, then press HEADPHONE on a deck.
 **What music formats does it play?** MP3, WAV, FLAC, AAC / M4A (including ALAC), OGG Vorbis and AIFF.
+**Does it run on a Mac?** Yes, there are macOS installers for Apple-silicon and Intel Macs (see above). They are new and not yet tested on real hardware.
 **Why does Windows warn about an unknown publisher?** The installer is not code-signed. Choose *More info → Run anyway*.
 **How do I report a problem or request a feature?** Open an [issue](https://github.com/unupunct/Party-Mix-DJ/issues).
 

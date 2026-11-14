@@ -34,7 +34,7 @@ jobs:
           cargo build --release --target x86_64-apple-darwin --manifest-path engine/Cargo.toml
       - name: Build the installers (.dmg)
         run: npm run dist:mac
-      - name: Check the minimum macOS version of the app (must be 12 or lower: a 2017 MacBook Air stops at Monterey)
+      - name: Check the app runs on macOS 12 or lower (a 2017 MacBook Air stops at Monterey)
         run: |
           for app in dist/mac/*.app dist/mac-arm64/*.app; do
             v=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$app/Contents/Info.plist")

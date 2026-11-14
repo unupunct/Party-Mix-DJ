@@ -246,3 +246,6 @@
 ## Waveform mouse control, half-size visuals, 28 XY effects
 - Layout: the visuals are half the width of a side panel, at the outer margins; the waveforms fill the space between them (1326 px at 2048 px). The waveform is a control: click = play / pause, drag = scrub, wheel = zoom (0.8 .. 60 s), shift + wheel = nudge.
 - XY pad: seven effects per family selectable on each row and in the settings (filter: low-pass, high-pass, band-pass, notch, comb, vowel, peak boost; echo: echo, ping-pong, tape, dub, slapback, reverse, triplet; reverb: room, hall, plate, spring, gated, swell, dark; flanger: flanger, phaser, chorus, vibrato, tremolo, auto-pan, ring mod). Engine: `engine/src/xyfx.rs` (`NV = 7`, `Command::Xy` carries `var: [u8; 4]`); tests: all 28 are finite, bounded, audible, different from the base effect, and release to the exact dry signal with no tail. Web Audio fallback: all four families and the filter types work; the other variants use the base echo / reverb / flanger.
+
+## 1.3.1
+- Mac first-start audio defaults (master = system default output, cue = Party Mix jack, common sample rate); Auto DJ ignores the physical crossfader while it is on (app.js default mapping and calib.js); macOS builds on Electron 43; Controller test window; cue to the Party Mix jack when it is a separate output device.

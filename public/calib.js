@@ -121,6 +121,7 @@
     const c = BYID[id], i = c.deck;
     switch (c.t) {
       case 'knob': case 'fader': case 'xf': {
+        if (id === 'xf' && window.autodj && window.autodj.S && window.autodj.S.on) return 'Auto DJ is mixing';   // Auto DJ drives the crossfader itself
         if (c.t === 'fader') return topFilter(id, e, m.d2);
         // worn faders send isolated wrong values. Normal motion is applied at once; a sudden big jump waits for the next message to confirm it (or 40 ms of silence, so a quick flick still lands)
         const f = flt[id] || (flt[id] = { last: null, pend: null, t: 0 });

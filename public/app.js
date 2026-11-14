@@ -857,7 +857,7 @@ function onCC(ch, n, v) {
     }
   } else if (ch === 15) {
     switch (n) {
-      case 0x08: ctl.xf.set(v01 * 2 - 1); break;
+      case 0x08: if (!(window.autodj && window.autodj.S && window.autodj.S.on)) ctl.xf.set(v01 * 2 - 1); break;   // (Auto DJ drives the crossfader itself)
       case 0x0A: ctl.master.set(v01); break;
       case 0x0C: ctl.headGain.set(v01); break;
       case 0x0D: ctl.headMix.set(v01); break;
@@ -1114,8 +1114,12 @@ async function startNativeAudio() {
   if (!s || (s.master && !ok(s.master))) {
     const rt = devs.find(d => /realtek/i.test(d.name) && /speaker/i.test(d.name)) || devs.find(d => /realtek/i.test(d.name));
     const pm = devs.find(d => /party\s*mix/i.test(d.name));
-    s = rt ? { master: rt.id, cue: { mode: 'off' }, sampleRate: 0, buffer: 0 }
-      : { master: pm ? pm.id : null, cue: pm && pm.maxChannels >= 4 ? { mode: 'same4' } : { mode: 'off' }, sampleRate: 0, buffer: 0 };
+    const mac = /Mac/i.test(navigator.platform), def = devs.find(d => d.isDefault);
+    if (rt) s = { master: rt.id, cue: { mode: 'off' }, sampleRate: 0, buffer: 0 };
+    else if (mac && def && pm && def.id !== pm.id) {   // a Mac: the Party Mix line outputs are rarely connected, so the master plays on the Mac's own output and the headphone cue goes to the controller's jack
+      const common = (pm.rates || []).filter(r => (def.rates || []).includes(r));
+      s = { master: def.id, cue: pm.maxChannels >= 4 ? { mode: 'device', device: pm.id } : { mode: 'off' }, sampleRate: common.includes(44100) ? 44100 : (common[0] || 0), buffer: 0 };
+    } else s = { master: pm ? pm.id : null, cue: pm && pm.maxChannels >= 4 ? { mode: 'same4' } : { mode: 'off' }, sampleRate: 0, buffer: 0 };
   }
   if (s.cue && s.cue.mode === 'device' && !ok(s.cue.device)) s.cue = { mode: 'off' };
   nat.settings = s; engSend({ cmd: 'open', ...s });

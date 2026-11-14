@@ -1,0 +1,65 @@
+{
+  "name": "partymix-dj",
+  "productName": "Party Mix DJ",
+  "version": "1.3.0",
+  "description": "Two-deck player, playlist and waveforms for the Numark Party Mix",
+  "main": "electron/main.js",
+  "author": "Party Mix DJ",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "web": "node server.js",
+    "icon": "node scripts/make-icon.js",
+    "dist": "npm run build:engine && electron-builder --win nsis portable",
+    "build:engine": "cargo build --release --manifest-path engine/Cargo.toml",
+    "test:engine": "cargo test --release --manifest-path engine/Cargo.toml",
+    "test:js": "node scripts/test-xyfx.js && node scripts/test-loopcalc.js"
+  },
+  "build": {
+    "appId": "local.partymixdj.app",
+    "productName": "Party Mix DJ",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "public/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "PartyMixDJ-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Party Mix DJ",
+      "artifactName": "PartyMixDJ-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "PartyMixDJ-${version}-portable.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "engine/target/release/djengine.exe",
+        "to": "djengine.exe"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "music-metadata": "^12.5.0"
+  }
+}

@@ -1109,7 +1109,10 @@ function getEngineDevices() {
 async function startNativeAudio() {
   const devs = await getEngineDevices();
   const ok = id => devs.some(d => d.id === id);
+  const key = id => String(id || '').replace(/:[0-9A-Fa-f]{6,}(?=:)/g, ':*');   // a Mac device id holds the USB port (…Party Mix:14100000:1); the same device on another port still matches
+  const heal = id => { if (!id || ok(id)) return id; const m = devs.filter(d => key(d.id) === key(id)); return m.length === 1 ? m[0].id : id; };
   let s = lsGet('audioSettings', null);
+  if (s) { if (s.master) s.master = heal(s.master); if (s.cue && s.cue.mode === 'device') s.cue.device = heal(s.cue.device); }
   if (lsGet('audioSettingsV', 0) < 2) { s = null; lsSet('audioSettingsV', 2); }   // one-time reset: the default output is now the Realtek front speakers
   if (!s || (s.master && !ok(s.master))) {
     const rt = devs.find(d => /realtek/i.test(d.name) && /speaker/i.test(d.name)) || devs.find(d => /realtek/i.test(d.name));

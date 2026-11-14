@@ -47,8 +47,8 @@ Get the latest build from the **[Releases](https://github.com/unupunct/Party-Mix
 
 | File | What it is |
 |---|---|
-| `PartyMixDJ-Setup-1.3.1.exe` | Installer (Start Menu + Desktop shortcut, choose folder, uninstaller). Per-user, no admin needed. |
-| `PartyMixDJ-1.3.1-portable.exe` | Single file, runs without installing. |
+| `PartyMixDJ-Setup-1.3.2.exe` | Installer (Start Menu + Desktop shortcut, choose folder, uninstaller). Per-user, no admin needed. |
+| `PartyMixDJ-1.3.2-portable.exe` | Single file, runs without installing. |
 
 Windows may show a SmartScreen warning ("unknown publisher") because the app is not code-signed: choose **More info → Run anyway**.
 Requirements: Windows 10 / 11 (64-bit), a Numark Party Mix (original model, USB `VID_15E4 PID_0038`, shows up as "Party Mix" audio + "Party Mix MIDI"). The app also starts without the controller and can be played with the mouse.
@@ -57,7 +57,7 @@ Run from source: `npm install` then `npm start`.
 ## macOS (Apple silicon and Intel)
 macOS builds are on the same [Releases](https://github.com/unupunct/Party-Mix-DJ/releases/latest) page: `PartyMixDJ-<version>-mac-arm64.dmg` for Macs with an M-series chip (M1 and later) and `PartyMixDJ-<version>-mac-x64.dmg` for Intel Macs (Apple menu → About This Mac shows which one you have). Open the .dmg and drag **Party Mix DJ** to Applications. The macOS version needs macOS 12 (Monterey) or newer (built with Electron 43, the last version that runs on Monterey, so older Intel MacBooks such as the 2017 MacBook Air work).
 
-The app is not signed or notarised by Apple, so the first time: **right-click (Control-click) the app → Open → Open**. If macOS says the app is damaged, run this once in Terminal: `xattr -cr "/Applications/Party Mix DJ.app"`. The Party Mix is a class-compliant USB device on macOS (no driver); the app lists it as "Party Mix" audio and MIDI. The macOS version is new and has not been tested on real Mac hardware yet: please [report problems](https://github.com/unupunct/Party-Mix-DJ/issues).
+The app is not signed or notarised by Apple, so the first time: **right-click (Control-click) the app → Open → Open**. If macOS says the app is damaged, run this once in Terminal: `xattr -cr "/Applications/Party Mix DJ.app"`. The Party Mix is a class-compliant USB device on macOS (no driver); the app lists it as "Party Mix" audio and MIDI. The macOS version is tested on a 2017 MacBook Air (Intel, macOS 12 Monterey): it installs, sees the Party Mix, plays and Auto DJ mixes. Other Macs (Apple silicon) are untested: please [report problems](https://github.com/unupunct/Party-Mix-DJ/issues).
 
 ## Screenshots
 | | |

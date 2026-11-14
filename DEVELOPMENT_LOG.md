@@ -249,3 +249,6 @@
 
 ## 1.3.1
 - Mac first-start audio defaults (master = system default output, cue = Party Mix jack, common sample rate); Auto DJ ignores the physical crossfader while it is on (app.js default mapping and calib.js); macOS builds on Electron 43; Controller test window; cue to the Party Mix jack when it is a separate output device.
+
+## 1.3.2
+- Saved master/cue device ids are re-matched ignoring the USB location segment (Mac); README: Mac tested on a real machine.

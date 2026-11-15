@@ -252,3 +252,6 @@
 
 ## 1.3.2
 - Saved master/cue device ids are re-matched ignoring the USB location segment (Mac); README: Mac tested on a real machine.
+
+## 1.3.3
+- Headphone cue: jitter buffer, louder curve with soft clip, no master in the cue, per-deck HEADPHONE (note-off LED, every press of the latch counts), automatic speaker/headphone delay alignment with a trim slider.

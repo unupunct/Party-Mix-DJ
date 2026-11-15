@@ -68,6 +68,7 @@
     <label>Headphone cue <select id="aCue"></select></label>
     <label>Sample rate <select id="aRate"></select></label>
     <label>Buffer size (frames) <select id="aBuf"></select></label>
+    <label>Headphone sync trim: <b id="aTrimV">0 ms</b> (the app aligns headphones and speakers automatically; move this to fine-tune) <input type="range" id="aTrim" min="-60" max="60" step="1" value="0"></label>
     <p class="dim small">Choose "Headphone jack of this device" for the Numark Party Mix: the master plays on channels 1/2 and the headphone cue on channels 3/4.
       Buffer size is a request; Windows shared-mode devices may fix their own period.</p>
     <p id="aInfo" class="dim small"></p>

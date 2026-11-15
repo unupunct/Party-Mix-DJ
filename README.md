@@ -47,8 +47,8 @@ Get the latest build from the **[Releases](https://github.com/unupunct/Party-Mix
 
 | File | What it is |
 |---|---|
-| `PartyMixDJ-Setup-1.3.2.exe` | Installer (Start Menu + Desktop shortcut, choose folder, uninstaller). Per-user, no admin needed. |
-| `PartyMixDJ-1.3.2-portable.exe` | Single file, runs without installing. |
+| `PartyMixDJ-Setup-1.3.3.exe` | Installer (Start Menu + Desktop shortcut, choose folder, uninstaller). Per-user, no admin needed. |
+| `PartyMixDJ-1.3.3-portable.exe` | Single file, runs without installing. |
 
 Windows may show a SmartScreen warning ("unknown publisher") because the app is not code-signed: choose **More info → Run anyway**.
 Requirements: Windows 10 / 11 (64-bit), a Numark Party Mix (original model, USB `VID_15E4 PID_0038`, shows up as "Party Mix" audio + "Party Mix MIDI"). The app also starts without the controller and can be played with the mouse.

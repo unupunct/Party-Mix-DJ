@@ -7,7 +7,7 @@ Everything marked **measured** was verified on this PC (i7-6700, 32 GB, Windows 
 
 | Area | Finding |
 |---|---|
-| Name / version | "Party Mix DJ" 1.3.2 (the "skeleton" this plan builds on) |
+| Name / version | "Party Mix DJ" 1.3.3 (the "skeleton" this plan builds on) |
 | Languages | JavaScript (vanilla, no framework), HTML, CSS. ~1,000 lines in total. |
 | Shell | Electron 45 (Chromium), CommonJS main process, sandboxed preload bridge. Also runs in a plain browser via `server.js`. |
 | Dependencies | `electron`, `electron-builder` (dev), `music-metadata` (tag reading). No database, no native code, no UI framework. |

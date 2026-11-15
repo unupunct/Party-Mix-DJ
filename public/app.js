@@ -286,7 +286,7 @@ function buildUI() {
   reg('xf', $('#xf'), -1, 1, xfApply); ctl.xf.set(0);
   reg('master', $('#master'), 0, 1, v => mix.gain.gain.value = v); ctl.master.set(0.8);
   /* HEADPHONES VOLUME (the controller's CUE MIX knob): the level of the headphone / cue output. What you hear is the cued channels with a little of the master (30 %), as before. */
-const HP_MIX = 0.3;
+const HP_MIX = 0;   // headphones = only the decks whose HEADPHONE button is on (no master mixed in)
 reg('headMix', $('#headMix'), 0, 1, v => { const g = hpGain(v); cue.cueTap.gain.value = (1 - HP_MIX) * g; cue.masterTap.gain.value = HP_MIX * g; }); ctl.headMix.set(0.8);
   cue.head.gain.value = 1.2;   // headphone level is fixed now: the CUE GAIN knob is the master DJ filter
   reg('headGain', $('#headGain'), 0, 1, v => { const f = (v - 0.5) * 2, m = Math.abs(f); if (m <= 0.05) { mix.hp.frequency.value = 10; mix.lp.frequency.value = 22000; } else { const u = (m - 0.05) / 0.95; if (f < 0) { mix.lp.frequency.value = 18000 * Math.pow(200 / 18000, u); mix.hp.frequency.value = 10; } else { mix.hp.frequency.value = 30 * Math.pow(6000 / 30, u); mix.lp.frequency.value = 22000; } } }); ctl.headGain.set(0.5);
@@ -328,7 +328,7 @@ reg('headMix', $('#headMix'), 0, 1, v => { const g = hpGain(v); cue.cueTap.gain.
   }
   for (const d of decks) d.wave = $('#wv' + d.i), d.ov = $('#ov' + d.i), d.ovCache = document.createElement('canvas');
 }
-function togglePfl(d) { d.pflOn = !d.pflOn; d.pfl.gain.value = d.pflOn ? 1 : 0; if (nat.active) engSend({ cmd: 'param', name: `d${d.i}.pfl`, value: d.pflOn ? 1 : 0 }); }
+function togglePfl(d, on) { d.pflOn = on === undefined ? !d.pflOn : !!on; d.pfl.gain.value = d.pflOn ? 1 : 0; if (nat.active) engSend({ cmd: 'param', name: `d${d.i}.pfl`, value: d.pflOn ? 1 : 0 }); }
 
 /* ------------------------------------------------------------------ rendering */
 const DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -890,7 +890,7 @@ function autoCues(d) {
     toast('4 cue points placed: START · INTRO END · CHORUS/DROP · OUTRO (pads 1-4 in CUE mode)');
   } catch (e) { /* cue points are a convenience: never block a load */ }
 }
-const hpGain = v => v * v * 1.6;   // headphone volume curve (0..1 -> linear gain up to 1.6)
+const hpGain = v => v * v * 3;   // headphone volume curve (0..1 -> linear gain up to 3; the engine rounds off the peaks)
 function hmSearch(d) { if (window.harmonic) window.harmonic.openForDeck(d.i); }
 const hmOn = d => !!(window.harmonic && window.harmonic.hm.sourceMode === String(d.i));
 /* ------------------------------------------------------------------ FX (PAD MODE = SAMPLER): 4 pads = 4 effect slots, 16 effects to choose from (native engine) */
@@ -927,9 +927,10 @@ function onNote(ch, n, down) {
   if (ch <= 1) {
     const d = decks[ch];
     if (n === 0x01) { down ? d.cueDown() : d.cueUp(); return; }
+    if (n === 0x1B) { togglePfl(d, down); return; }   // the HEADPHONE button is a latching switch: ON message = on, OFF message = off (every press counts)
     if (!down) return;
     if (n === 0x00) d.toggle(); else if (n === 0x02) d.syncTo(decks[1 - ch]);
-    else if (n === 0x07) hmSearch(d); else if (n === 0x1B) togglePfl(d);   // the SCRATCH button now starts the Harmonic Match search for this deck
+    else if (n === 0x07) hmSearch(d);;   // the SCRATCH button now starts the Harmonic Match search for this deck
   } else if (ch === 4 || ch === 5) {
     const d = decks[ch - 4];
     if (MODE_NOTE[n]) { if (down) d.padMode = MODE_NOTE[n]; }   // the controller lights its own LEDs on a press: overwrite with the screen's state
@@ -944,7 +945,7 @@ function led(status, note, on) {
   if (window.__ledHold) return;   // the controller test owns the LEDs while it is open
   const key = status * 256 + note, val = on ? 0x7F : (note === 0x1B ? 0x00 : 0x01);   // off = velocity 1 (a dim glow); the HEADPHONE button must really go dark, so it gets velocity 0
   if (!midiOut || ledCache.get(key) === val) return;
-  ledCache.set(key, val); try { midiOut.send([status, note, val]); } catch {}
+  ledCache.set(key, val); try { midiOut.send(note === 0x1B && !on ? [status - 0x10, note, 0] : [status, note, val]); } catch {}   // the HEADPHONE light only goes dark on a real note-off (velocity 0 on a note-on leaves it lit)
 }
 function ledsOff() {
   for (const d of decks) { const s = 0x90 + d.i, p = 0x94 + d.i; for (const n of [0, 1, 2, 7, 0x1B]) led(s, n, false); for (let n = 0; n < 4; n++) led(p, 0x14 + n, false); }
@@ -974,7 +975,7 @@ async function initMidi() {
     st.textContent = ins.length ? `MIDI: ${ins[0].name} connected` : 'MIDI: Party Mix not found – plug it in';
   };
   acc.onstatechange = refresh; refresh();
-  window.addEventListener('beforeunload', () => { if (midiOut) for (const d of decks) { for (const n of [0, 1, 2, 7, 0x1B]) try { midiOut.send([0x90 + d.i, n, 0]); } catch {} } });
+  window.addEventListener('beforeunload', () => { if (midiOut) for (const d of decks) { for (const n of [0, 1, 2, 7, 0x1B]) try { midiOut.send([(n === 0x1B ? 0x80 : 0x90) + d.i, n, 0]); } catch {} } });
 }
 
 /* ------------------------------------------------------------------ music library (SQLite in the engine, analysed in the background) */
@@ -1084,7 +1085,7 @@ function nativeParam(name, v) {
   engSendThrottled('p:' + n, { cmd: 'param', name: n, value: val }, 8);
 }
 function syncNativeParams() {
-  engSend({ cmd: 'param', name: 'headMix', value: 0.3 });   // headphones = cued channels + 30 % master; the level is the HEADPHONES VOLUME knob (sent with the other knobs)
+  engSend({ cmd: 'param', name: 'headMix', value: HP_MIX });   // headphones = cued channels + 30 % master; the level is the HEADPHONES VOLUME knob (sent with the other knobs)
   for (const k of Object.keys(ctl)) nativeParam(k, +ctl[k].el.value);
   for (const d of decks) { engSend({ cmd: 'param', name: `d${d.i}.pfl`, value: d.pflOn ? 1 : 0 }); engSend({ cmd: 'rate', deck: d.i, value: d.effRate }); }
 }
@@ -1125,7 +1126,7 @@ async function startNativeAudio() {
     } else s = { master: pm ? pm.id : null, cue: pm && pm.maxChannels >= 4 ? { mode: 'same4' } : { mode: 'off' }, sampleRate: 0, buffer: 0 };
   }
   if (s.cue && s.cue.mode === 'device' && !ok(s.cue.device)) s.cue = { mode: 'off' };
-  nat.settings = s; engSend({ cmd: 'open', ...s });
+  nat.settings = s; engSend({ cmd: 'open', ...s }); engSend({ cmd: 'syncTrim', ms: lsGet('syncTrim', 0) });
 }
 async function resyncDecks() {
   for (const d of decks) {
@@ -1207,6 +1208,8 @@ function openAudioDialog() {
   };
   M.onchange = () => { cur.cue = 'off'; cur.rate = '0'; refresh(); apply(); };
   C.onchange = R.onchange = B.onchange = apply;
+  const T = $('#aTrim'), TV = $('#aTrimV'); T.value = lsGet('syncTrim', 0); TV.textContent = T.value + ' ms';
+  T.oninput = () => { TV.textContent = T.value + ' ms'; lsSet('syncTrim', +T.value); engSend({ cmd: 'syncTrim', ms: +T.value }); };
   $('#aTestM').onclick = () => engSend({ cmd: 'beep', target: 'master' });
   $('#aTestC').onclick = () => engSend({ cmd: 'beep', target: 'cue' });
   updateEngineChip(); dlg.showModal();

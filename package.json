@@ -1,7 +1,7 @@
 {
   "name": "partymix-dj",
   "productName": "Party Mix DJ",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Two-deck player, playlist and waveforms for the Numark Party Mix",
   "main": "electron/main.js",
   "author": "Party Mix DJ",

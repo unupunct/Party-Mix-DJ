@@ -159,6 +159,12 @@ impl Io {
             _ => { err_failed.store(true, Relaxed); }
         };
         let ratef = rate as f32;
+        let shared_cue = self.shared.clone();
+        shared_cue.cue_lat_us.store(0, Relaxed);
+        // speaker/headphone sync: the cue goes through its own device and a small buffer, so it lags the speakers; the master output is delayed by the difference (measured live) so both are heard together
+        let mut dl = vec![0f32; (rate as usize / 2) * 2];
+        let (mut dw, mut dcur, mut dtick) = (0usize, 0usize, 0u32);
+        let dl_frames = rate as usize / 2;
         let master_stream = master.build_output_stream(cfg, move |data: &mut [f32], info| {
             let t0 = Instant::now();
             let frames = data.len() / chn;
@@ -171,10 +177,15 @@ impl Io {
             while done < frames {
                 let n = (frames - done).min(MAXF);
                 mx.render(&mut mb[..n * 2], &mut cb[..n * 2], n);
+                let dtarget = if use_ring { (((shared.cue_lat_us.load(Relaxed) as i64 - shared.latency_us.load(Relaxed) as i64 + shared.sync_trim_us.load(Relaxed) as i64).max(0) as f64 / 1e6) * rate as f64) as usize } else { 0 }.min(dl_frames - 1);
                 for i in 0..n {
                     let o = &mut data[(done + i) * chn..(done + i + 1) * chn];
                     o.fill(0.0);
-                    o[0] = mb[i * 2]; o[1] = mb[i * 2 + 1];
+                    dtick += 1; if dtick >= 24 { dtick = 0; if dcur < dtarget { dcur += 1 } else if dcur > dtarget { dcur -= 1 } }   // glide to the target (a tiny pitch bend while it settles)
+                    dl[dw * 2] = mb[i * 2]; dl[dw * 2 + 1] = mb[i * 2 + 1];
+                    let rp = (dw + dl_frames - dcur) % dl_frames;
+                    o[0] = dl[rp * 2]; o[1] = dl[rp * 2 + 1];
+                    dw = (dw + 1) % dl_frames;
                     if same4 && chn >= 4 { o[2] = cb[i * 2]; o[3] = cb[i * 2 + 1]; }
                     else if use_ring { let _ = cue_tx.push(cb[i * 2]); let _ = cue_tx.push(cb[i * 2 + 1]); }
                 }
@@ -188,14 +199,20 @@ impl Io {
         let mut cue_name = String::new();
         if let (Some(d), Some(c)) = (cue_dev, cue_cfg) {
             let cch = c.channels as usize;
-            let (hi, target) = ((rate as usize * 2) * 12 / 100, (rate as usize * 2) * 4 / 100);
-            let st = d.build_output_stream(c, move |data: &mut [f32], _| {
+            let (hi, target) = ((rate as usize * 2) * 20 / 100, (rate as usize * 2) * 4 / 100);   // ~40 ms jitter cushion, trimmed back if the clocks drift past ~300 ms
+            let mut primed = false;
+            let cue_shared = shared_cue;
+            let st = d.build_output_stream(c, move |data: &mut [f32], info| {
                 // keep the cue latency bounded when the two devices' clocks drift
                 let avail = cue_rx.slots();
+                { let ts = info.timestamp(); let dev = ts.playback.duration_since(ts.callback).as_micros().min(2_000_000) as f32; let tot = dev + (avail as f32 / 2.0 / ratef) * 1e6; let old = cue_shared.cue_lat_us.load(Relaxed) as f32; cue_shared.cue_lat_us.store(if old == 0.0 { tot } else { old * 0.98 + tot * 0.02 } as u32, Relaxed); }
                 if avail > hi { for _ in 0..((avail - target) & !1) { let _ = cue_rx.pop(); } }
+                if !primed && avail >= target { primed = true; }   // wait for the cushion before playing, so the two devices' different buffer sizes cannot make gaps
                 for frame in data.chunks_mut(cch) {
                     frame.fill(0.0);
-                    if cue_rx.slots() >= 2 { frame[cue_ofs] = cue_rx.pop().unwrap_or(0.0); frame[cue_ofs + 1] = cue_rx.pop().unwrap_or(0.0); }
+                    if primed {
+                        if cue_rx.slots() >= 2 { frame[cue_ofs] = cue_rx.pop().unwrap_or(0.0); frame[cue_ofs + 1] = cue_rx.pop().unwrap_or(0.0); } else { primed = false; }
+                    }
                 }
             }, on_err, None).map_err(|e| format!("cannot open cue output: {e}"))?;
             st.play().map_err(|e| format!("cannot start cue output: {e}"))?;

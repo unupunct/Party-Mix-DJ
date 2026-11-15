@@ -89,6 +89,8 @@ pub struct Shared {
     pub xruns: AtomicU32,
     pub cpu_x1000: AtomicU32,     // callback time / buffer time, x1000
     pub latency_us: AtomicU32,    // reported output latency
+    pub cue_lat_us: AtomicU32,    // measured delay of the headphone cue (device latency + cue buffer), smoothed
+    pub sync_trim_us: std::sync::atomic::AtomicI32, // manual trim of the speaker/headphone alignment
     pub buffer_frames: AtomicU32, // last callback size
     pub frames_rendered: AtomicU64,
 }
@@ -475,7 +477,7 @@ impl Mixer {
             master[i * 2] = ol; master[i * 2 + 1] = or;
             mp[0] = mp[0].max(ol.abs()); mp[1] = mp[1].max(or.abs());
             let (cl, cr) = (((bc[i * 2] * (1.0 - hm)) + l * hm) * hg, ((bc[i * 2 + 1] * (1.0 - hm)) + r * hm) * hg);
-            let (cl, cr) = ((cl + tc).clamp(-1.0, 1.0), (cr + tc).clamp(-1.0, 1.0));
+            let (cl, cr) = (soft_clip(cl + tc), soft_clip(cr + tc));   // the headphone feed is louder now: round off the peaks instead of hard clipping
             cue[i * 2] = cl; cue[i * 2 + 1] = cr;
             cpk[0] = cpk[0].max(cl.abs()); cpk[1] = cpk[1].max(cr.abs());
         }
@@ -534,3 +536,6 @@ mod filter_curve_tests {
         let (_, hp) = filter_cutoff(0.06).unwrap(); assert!(hp < 45.0);
     }
 }
+
+/// Linear up to 0.8, then a smooth knee towards 1.0 (headphone cue only).
+fn soft_clip(x: f32) -> f32 { let a = x.abs(); if a <= 0.8 { x } else { x.signum() * (0.8 + 0.2 * ((a - 0.8) / 0.2).tanh()) } }

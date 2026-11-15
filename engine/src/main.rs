@@ -82,7 +82,7 @@ fn run_server() {
                 "evt": "state", "t": started.elapsed().as_secs_f64() * 1000.0, "decks": decks,
                 "master": Shared::take_peak(&shared.master_peak), "cue": Shared::take_peak(&shared.cue_peak),
                 "cpu": shared.cpu_x1000.load(Relaxed) as f64 / 1000.0, "xruns": shared.xruns.load(Relaxed), "clips": shared.clips.load(Relaxed),
-                "latencyMs": shared.latency_us.load(Relaxed) as f64 / 1000.0, "bufferFrames": shared.buffer_frames.load(Relaxed),
+                "latencyMs": shared.latency_us.load(Relaxed) as f64 / 1000.0, "cueLatencyMs": shared.cue_lat_us.load(Relaxed) as f64 / 1000.0, "bufferFrames": shared.buffer_frames.load(Relaxed),
             }));
         });
     }
@@ -133,6 +133,7 @@ fn run_server() {
             "seek" => push(&cmd_tx, &events, Command::Seek { deck, pos: num("pos") }),
             "rate" => push(&cmd_tx, &events, Command::Rate { deck, rate: num("value") as f32 }),
             "loop" => push(&cmd_tx, &events, Command::Loop { deck, start: num("start"), end: num("end"), on: v["on"].as_bool().unwrap_or(false) }),
+            "syncTrim" => shared.sync_trim_us.store((num("ms") * 1000.0) as i32, std::sync::atomic::Ordering::Relaxed),
             "param" => match v["name"].as_str().and_then(parse_param) {
                 Some(id) => push(&cmd_tx, &events, Command::Param(id, num("value") as f32)),
                 None => { let _ = events.send(json!({"evt": "error", "message": format!("unknown param {}", v["name"])})); }
